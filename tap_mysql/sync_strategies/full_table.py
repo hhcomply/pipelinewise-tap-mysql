@@ -143,7 +143,7 @@ def sync_table(mysql_conn, catalog_entry, state, columns, stream_version, config
 
     with connect_with_backoff(mysql_conn) as open_conn:
         with open_conn.cursor() as cur:
-            select_sql = generate_select_sql(catalog_entry, columns, column_filters)
+            select_sql = common.generate_select_sql(catalog_entry, columns, column_filters)
 
             if key_props_are_auto_incrementing:
                 LOGGER.info("Detected auto-incrementing primary key(s) - will replicate incrementally")
