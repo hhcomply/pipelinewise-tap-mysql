@@ -112,8 +112,7 @@ def generate_pk_clause(catalog_entry, state):
 
     return sql
 
-
-def sync_table(mysql_conn, catalog_entry, state, columns, stream_version):
+def sync_table(mysql_conn, catalog_entry, state, columns, stream_version, config):
     common.whitelist_bookmark_keys(generate_bookmark_keys(catalog_entry), catalog_entry.tap_stream_id, state)
 
     bookmark = state.get('bookmarks', {}).get(catalog_entry.tap_stream_id, {})
@@ -139,9 +138,12 @@ def sync_table(mysql_conn, catalog_entry, state, columns, stream_version):
 
     key_props_are_auto_incrementing = pks_are_auto_incrementing(mysql_conn, catalog_entry)
 
+    # Extract column filters from the config
+    column_filters = config.get('column_filters', {})
+
     with connect_with_backoff(mysql_conn) as open_conn:
         with open_conn.cursor() as cur:
-            select_sql = common.generate_select_sql(catalog_entry, columns)
+            select_sql = generate_select_sql(catalog_entry, columns, column_filters)
 
             if key_props_are_auto_incrementing:
                 LOGGER.info("Detected auto-incrementing primary key(s) - will replicate incrementally")
@@ -177,3 +179,4 @@ def sync_table(mysql_conn, catalog_entry, state, columns, stream_version):
     singer.clear_bookmark(state, catalog_entry.tap_stream_id, 'last_pk_fetched')
 
     singer.write_message(activate_version_message)
+    

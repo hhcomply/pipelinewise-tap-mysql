@@ -58,7 +58,7 @@ def get_database_name(catalog_entry):
     return md_map.get((), {}).get('database-name')
 
 
-def generate_select_sql(catalog_entry, columns):
+def generate_select_sql(catalog_entry, columns, column_filters=None):
     database_name = get_database_name(catalog_entry)
     escaped_db = escape(database_name)
     escaped_table = escape(catalog_entry.table)
@@ -83,6 +83,13 @@ def generate_select_sql(catalog_entry, columns):
             escaped_columns.append(escaped_col)
 
     select_sql = f'SELECT {",".join(escaped_columns)} FROM {escaped_db}.{escaped_table}'
+
+    # Apply column filters if provided
+    if column_filters and catalog_entry.tap_stream_id in column_filters:
+        filters = column_filters[catalog_entry.tap_stream_id]
+        filter_clauses = [f"{escape(col)} = '{val}'" for col, val in filters.items()]
+        filter_query = " WHERE " + " AND ".join(filter_clauses)
+        select_sql += filter_query
 
     # escape percent signs
     select_sql = select_sql.replace('%', '%%')

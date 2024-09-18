@@ -82,6 +82,18 @@ def is_supported_column_type(column_datatype: str) -> bool:
     """
     return column_datatype in SUPPORTED_COLUMN_TYPES_AGGREGATED
 
+def get_column_filters(config):
+    """
+    Extracts column filters from the configuration.
+
+    Args:
+        config: The configuration dictionary.
+
+    Returns:
+        A dictionary of column filters.
+    """
+    return config.get('column_filters', {})
+
 
 def should_run_discovery(column_names: Set[str], md_map: Dict[Tuple, Dict]) -> bool:
     """
@@ -119,9 +131,10 @@ def should_run_discovery(column_names: Set[str], md_map: Dict[Tuple, Dict]) -> b
 
     return False
 
-
-def discover_catalog(mysql_conn: MySQLConnection, dbs: str = None, tables: Optional[str] = None):
+def discover_catalog(mysql_conn: MySQLConnection, dbs: str = None, tables: Optional[str] = None, config: Optional[Dict] = None):
     """Returns a Catalog describing the structure of the database."""
+
+    column_filters = get_column_filters(config) if config else {}
 
     if dbs:
         filter_dbs_clause = ",".join([f"'{db_name}'" for db_name in dbs.split(",")])
@@ -226,6 +239,13 @@ def discover_catalog(mysql_conn: MySQLConnection, dbs: str = None, tables: Optio
                                             'table-key-properties',
                                             key_properties)
 
+                # Add column filters to metadata
+                if table_schema in column_filters and table_name in column_filters[table_schema]:
+                    md_map = metadata.write(md_map,
+                                            (),
+                                            'column-filters',
+                                            column_filters[table_schema][table_name])
+
                 entry = CatalogEntry(
                     table=table_name,
                     stream=table_name,
@@ -236,7 +256,6 @@ def discover_catalog(mysql_conn: MySQLConnection, dbs: str = None, tables: Optio
                 entries.append(entry)
 
     return Catalog(entries)
-
 
 def schema_for_column(column):  # pylint: disable=too-many-branches
     """Returns the Schema object for the given Column."""
